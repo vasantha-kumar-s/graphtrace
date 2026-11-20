@@ -156,8 +156,14 @@
   }
 }
 
-@layer base { body { font-family: var(--font-sans); } }
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+}
 @utility grid-bg {
-  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 32px 32px;
 }
