@@ -75,17 +75,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "GraphTrace — Agent Retrieval Tracer" },
+      {
+        title: "GraphTrace — Graph-Based Retrieval Intelligence & Multi-Hop Relationship Tracing",
+      },
       {
         name: "description",
         content:
-          "Analyze what your AI agent retrieved and what evidence was actually used in the final answer.",
+          "Graph-based retrieval intelligence and knowledge exploration with multi-hop relationship tracing. Evaluate evidence utilization and causal dependencies in AI agents.",
       },
-      { property: "og:title", content: "GraphTrace — Agent Retrieval Tracer" },
+      {
+        property: "og:title",
+        content: "GraphTrace — Graph-Based Retrieval Intelligence & Multi-Hop Relationship Tracing",
+      },
       {
         property: "og:description",
         content:
-          "Analyze what your AI agent retrieved and what evidence was actually used in the final answer.",
+          "Graph-based retrieval intelligence and knowledge exploration with multi-hop relationship tracing.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -111,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <HeadContent />
       </head>

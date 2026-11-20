@@ -1,203 +1,302 @@
 # GraphTrace
 
-> **Agent Retrieval & Execution Trace Analyzer** — Evaluate which retrieved documents and evidence chunks actually shaped your AI agent's generated answer.
+> **Graph-based retrieval intelligence and knowledge exploration with multi-hop relationship tracing.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.2-61dafb.svg)](https://react.dev/)
+[![Bun](https://img.shields.io/badge/Bun-1.4+-fbf0df.svg)](https://bun.sh/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154.svg)](https://tanstack.com/start)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
-## Overview
+## 1. GraphTrace Introduction
 
-When building Retrieval-Augmented Generation (RAG) pipelines and autonomous agents (e.g. with LangGraph, LlamaIndex, CrewAI, AutoGen), agents frequently retrieve dozens of documents or code snippets that never actually influence the final response. This leads to bloated context windows, increased latency, higher LLM token costs, and subtle hallucinations.
+**GraphTrace** is an open-source, client-side developer platform for evaluating, scoring, and visually exploring multi-hop retrieval and knowledge graphs in autonomous AI agents. It bridges the gap between raw vector search, structured knowledge graphs, and final generative answers—enabling developers to pinpoint exactly which pieces of retrieved evidence influenced an agent's reasoning.
 
-**GraphTrace** provides a high-fidelity visual trace viewer and lexical overlap evaluator for agent execution runs. It runs **100% client-side** in your browser: no traces or proprietary code leave your machine, and no secondary LLM calls are made to evaluate evidence usage.
-
----
-
-## Features
-
-- **100% Client-Side Privacy**: Traces are parsed and analyzed purely within your browser session using standard Web APIs. No telemetry, third-party trackers, or backend data storage.
-- **Lexical Overlap Scoring**: Automatically tokens and scores every retrieved snippet against the final answer using token-set overlap ratio (`Math.min(answerTokens, snippetTokens)`).
-- **Threshold-Based Usage Detection**: Automatically tags each piece of evidence as **used** (green badge, $\ge 0.20$ overlap) or **no trace** (red outline, $< 0.20$ overlap).
-- **Multi-Phase Execution Timeline**: Visualizes execution spans (`retriever`, `llm`, `node`), parent-child span relationships, and relative millisecond latencies across the pipeline.
-- **Multi-Arm Retrieval Breakdown**: Compares retrievals across different search arms (e.g., vector search vs. knowledge graph search vs. keyword search).
-- **Interactive Chunk Inspection**: Expand and read full snippet content directly within the UI, alongside vector similarity scores and overlap metrics.
-- **Instant Demo Mode**: Includes an interactive sample trace modeled after a LangGraph incident resolution flow.
-- **Flexible JSON Import**: Accepts any agent trace file matching the standard GraphTrace JSON schema.
+GraphTrace operates **100% locally in your browser session**: no proprietary trace data or source code ever leaves your machine, and no secondary LLMs are invoked to compute evaluation metrics.
 
 ---
 
-## Technology Stack
+## 2. Problem Statement
 
-| Layer                      | Technologies                                                                                                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Framework**              | [React 19](https://react.dev/) with [TanStack Start](https://tanstack.com/start)                                                                                |
-| **Routing & Query**        | [TanStack Router](https://tanstack.com/router) (file-based routing), [TanStack Query v5](https://tanstack.com/query)                                            |
-| **Styling**                | [Tailwind CSS v4](https://tailwindcss.com/) with OKLCH dynamic color system and brutalist developer theme                                                       |
-| **Bundling & Server**      | [Vite 8](https://vite.dev/), [Nitro 3](https://nitro.unjs.io/) (SSR + Cloudflare module support)                                                                |
-| **Testing**                | [Vitest](https://vitest.dev/), [@testing-library/react](https://testing-library.com/), [@testing-library/jest-dom](https://github.com/testing-library/jest-dom) |
-| **Linting & Code Quality** | [ESLint 9](https://eslint.org/) (flat config), [Prettier 3](https://prettier.io/), [typescript-eslint](https://typescript-eslint.io/)                           |
+When autonomous agents (e.g. built with LangGraph, LlamaIndex, AutoGen, or custom loops) execute retrieval-augmented generation (RAG) tasks:
+
+- **Excess Retrieval Waste**: An agent may retrieve 10 to 50 documents, PRs, or tickets, but the final generated answer only synthesizes information from 2 or 3 items.
+- **Context Pollution & Latency**: The unutilized evidence inflates token costs, extends end-to-end latency, and provides a wider attack surface for hallucinations.
+- **Black-Box Multi-Hop Traversal**: Vector search alone lacks relational awareness (e.g. _Which PR caused the incident?_ requires navigating `Document -[IMPLICATES]-> PR -[CAUSED]-> Service -[OWNED_BY]-> Team`). Without multi-hop relationship tracing, developers cannot diagnose why an agent picked or missed a causal link.
 
 ---
 
-## Architecture & Project Structure
+## 3. Project Objectives
 
-GraphTrace is structured around pure computational scoring logic separated from presentation components:
+1. **Provide Exact Retrieved-vs-Used Signal**: Automatically compute deterministic lexical overlap between retrieved evidence chunks and the generated answer.
+2. **Visualize Multi-Hop Causal Paths**: Render interactive knowledge graphs displaying typed edges (`AUTHORED`, `RESOLVES`, `TOUCHES`, `CAUSED`, `IMPLICATES`) and highlighted causal chains.
+3. **Inspect Execution Waterfall**: Display granular span latencies across planning, retrieval arms (vector vs graph), and LLM generation phases.
+4. **Preserve Privacy & Zero Egress**: Run all scoring algorithms, parsers, and graph renders client-side with zero external cloud dependencies or required API tokens.
+
+---
+
+## 4. Implemented Features
+
+### Retrieval Evaluation & Lexical Overlap
+
+- **Deterministic Token Overlap**: Tokenizes answer text and candidate documents, filters domain stop-words, and calculates vocabulary overlap:
+  $$\text{Overlap}(A, C) = \frac{|T(A) \cap T(C)|}{\min(|T(A)|, |T(C)|)}$$
+- **Usage Verdict Classification**: Classifies every candidate as:
+  - `used` ($\text{Overlap} \ge 0.20$): Displayed with a green indicator tag and overlap score.
+  - `no trace` ($\text{Overlap} < 0.20$): Displayed with strikeout styling and unutilized status.
+- **Span Waterfall Timeline**: Visualizes execution phases (`retriever`, `llm`, `node`) with relative millisecond timing.
+
+### Interactive Knowledge Graph Explorer
+
+- **Entity Node Support**: Rich representation for `PR`, `Commit`, `Service`, `Person`, `Document`, `Repo`, `Ticket`, `Team`, `Tool`, and `File`.
+- **Typed Relationship Edges**: Shows directional dependencies with relationship badges (`AUTHORED`, `RESOLVES`, `TOUCHES`, `CAUSED`, `IMPLICATES`, `DEPENDS_ON`, `OWNED_BY`).
+- **Causal Path Isolation**: Dynamic toggle between the full knowledge neighborhood and the active causal trace path.
+- **Entity Node Inspector**: Deep-dive into similarity scores, fused router weights, recency decay factors, and direct relations.
+
+### Episodic Memory & Structured Facts
+
+- **Memory Facts Viewer**: Inspect the explicit factual assertions supplied to the agent prompt with distinction between structural relations and agent-remembered facts.
+
+### Developer SaaS UX
+
+- **Theme Support**: Seamless Dark and Light theme toggles with OKLCH dynamic color palettes.
+- **Built-in Demos**: Toggle between the Webhook Incident Trace and the Multi-Hop Inventory Pipeline Knowledge Graph.
+- **Local File Loader**: Instant drag-and-drop / file selector for custom `.json` trace files.
+
+---
+
+## 5. UI Architecture & Screenshots
+
+```
++-----------------------------------------------------------------------------------------+
+| [GT] GraphTrace  [Execution Trace]  [Knowledge Graph]  [Memory Facts]  [Trace/Graph Demo] [Sun] |
++-----------------------------------------------------------------------------------------+
+| Query: "Why did the order fulfillment pipeline experience checkout errors?"             |
+|                                                                                         |
+|  [ Incident Report #104 ] ---IMPLICATES---> [ PR #215 ] ---CAUSED---> [ inventory-service ]|
+|          |                                      ^                              |        |
+|      RESOLVES                                AUTHORED                       OWNED_BY    |
+|          v                                      |                              v        |
+|    [ ISSUE-409 ]                          [ Alex Chen ]               [ Logistics Team ]|
++-----------------------------------------------------------------------------------------+
+| Grounded Final Answer: PR #215 introduced an inventory lock deduplication change...     |
++-----------------------------------------------------------------------------------------+
+```
+
+---
+
+## 6. Technology Stack
+
+| Component                     | Technology                                                                        | Description                                                                 |
+| :---------------------------- | :-------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **Runtime & Package Manager** | [Bun](https://bun.sh/) (v1.4+)                                                    | Fast package installation, execution, and lockfile management               |
+| **Framework**                 | [React 19](https://react.dev/) + [TanStack Start](https://tanstack.com/start)     | SSR-capable React application shell                                         |
+| **Routing**                   | [TanStack Router](https://tanstack.com/router)                                    | Type-safe, file-based routing architecture                                  |
+| **State & Data Fetching**     | [TanStack Query v5](https://tanstack.com/query)                                   | Cache management and client-state handling                                  |
+| **Styling & Design System**   | [Tailwind CSS v4](https://tailwindcss.com/)                                       | Modern utility-first styles with OKLCH variables and responsive breakpoints |
+| **Icons & Typography**        | [Lucide React](https://lucide.dev/), JetBrains Mono, Space Grotesk                | Developer-focused SaaS visual aesthetic                                     |
+| **Testing Suite**             | [Vitest](https://vitest.dev/), Testing Library                                    | Unit tests and routing integration tests                                    |
+| **Linting & Code Quality**    | [ESLint 9](https://eslint.org/) (flat config), [Prettier 3](https://prettier.io/) | Formatting and static code quality verification                             |
+
+---
+
+## 7. Architecture Overview
+
+```mermaid
+flowchart TD
+    subgraph INGEST["1 · Ingestion & Trace Capture"]
+        T_JSON["trace.json / AgentTrace"]
+        DEMO["Built-in Demos"]
+    end
+
+    subgraph CLIENT["2 · GraphTrace Client-Side Engine (In-Browser)"]
+        direction TB
+        PARSER["Schema Validator & Trace Normalizer"]
+
+        subgraph SCORING["Pure Computational Scoring"]
+            TOK["Stop-Word Tokenizer"]
+            OVL["Lexical Overlap Scorer (Jaccard Min)"]
+            VERDICT{"Threshold >= 0.20?"}
+            TOK --> OVL --> VERDICT
+        end
+
+        subgraph GRAPH["Knowledge Graph Engine"]
+            NODES["Entity Nodes (PR, Service, Document...)"]
+            EDGES["Typed Directed Edges (AUTHORED, CAUSED...)"]
+            FILTER["Active Causal Path Filter"]
+            NODES --> FILTER
+            EDGES --> FILTER
+        end
+    end
+
+    subgraph PRESENTATION["3 · Interactive SaaS UI"]
+        TIMELINE["Waterfall Timeline & Latency"]
+        CHUNKS["Retrieval Cards & Usage Indicators"]
+        CANVAS["SVG Interactive Graph Canvas"]
+        INSPECTOR["Node Property & Metric Inspector"]
+        FACTS["Episodic Memory Fact List"]
+    end
+
+    INGEST --> PARSER
+    PARSER --> SCORING
+    PARSER --> GRAPH
+
+    SCORING --> TIMELINE
+    SCORING --> CHUNKS
+    GRAPH --> CANVAS
+    GRAPH --> INSPECTOR
+    GRAPH --> FACTS
+```
+
+---
+
+## 8. Repository Structure
 
 ```
 graphtrace/
-├── public/                 # Static assets (favicon, robots.txt)
+├── public/                 # Static web assets (favicon, robots.txt)
 ├── src/
-│   ├── components/         # Modular UI components
-│   │   ├── AnswerPanel.tsx     # Final answer display and threshold legend
-│   │   ├── RetrievalList.tsx   # Expandable list of retrieval spans and chunks
-│   │   ├── TraceHeader.tsx     # Top navigation, brand logo, and file loader
-│   │   ├── TraceStats.tsx      # Overview metrics (query, retrieved count, used count)
-│   │   └── TraceTimeline.tsx   # Execution span waterfall timeline visualization
-│   ├── lib/                # Pure scoring functions and server wrappers
-│   │   ├── demo-trace.ts       # Sample multi-step LangGraph agent trace
+│   ├── components/         # Modular developer SaaS dashboard components
+│   │   ├── AnswerPanel.tsx     # Final generated answer & threshold legend
+│   │   ├── FactsPanel.tsx      # Grounded episodic memory assertions
+│   │   ├── GraphCanvas.tsx     # Interactive multi-hop SVG relationship graph
+│   │   ├── NodeInspector.tsx   # Detailed entity metadata & metric inspector
+│   │   ├── RetrievalList.tsx   # Expandable retrieval items & overlap tags
+│   │   ├── TraceHeader.tsx     # Navigation bar, tabs, theme toggle & loader
+│   │   ├── TraceStats.tsx      # Overview statistics cards
+│   │   └── TraceTimeline.tsx   # Span waterfall execution timeline
+│   ├── lib/                # Pure scoring, types, and utilities
+│   │   ├── demo-graph.ts       # Multi-hop payments incident knowledge graph
+│   │   ├── demo-trace.ts       # Sample LangGraph webhook execution trace
 │   │   ├── error-capture.ts    # Server error recovery and diagnostics
 │   │   ├── error-page.ts       # SSR fallback error template
 │   │   ├── overlap.ts          # Pure lexical tokenization and overlap scoring
 │   │   ├── overlap.test.ts     # Unit tests for scoring algorithm
-│   │   └── utils.ts            # Class name merging utility (clsx + tailwind-merge)
-│   ├── routes/             # File-based routes (TanStack Router)
-│   │   ├── __root.tsx          # Root HTML shell, layout, and global error boundaries
-│   │   └── index.tsx           # Primary trace analyzer page
-│   ├── test/               # Integration tests and Vitest setup
-│   │   ├── app-routing.test.tsx# Routing and fallback integration test
-│   │   └── setup.ts            # DOM polyfills for Vitest environment
+│   │   ├── trace-types.ts      # Shared entity, graph, and trace definitions
+│   │   └── utils.ts            # Class name helper (clsx + tailwind-merge)
+│   ├── routes/             # TanStack Router file-based pages
+│   │   ├── __root.tsx          # Root shell layout, dark theme class & meta
+│   │   ├── index.tsx           # Main GraphTrace application page
+│   │   └── README.md           # Route conventions documentation
+│   ├── test/               # Integration tests & test setup
+│   │   ├── app-routing.test.tsx# Routing regression test
+│   │   └── setup.ts            # DOM polyfills for Vitest
 │   ├── router.tsx          # Router factory with per-request QueryClient
 │   ├── routeTree.gen.ts    # Auto-generated TanStack router manifest
 │   ├── server.ts           # SSR server entrypoint
 │   ├── start.ts            # TanStack Start middleware configuration
 │   └── styles.css          # Tailwind CSS v4 design tokens and theme variables
 ├── .env.example            # Environment configuration template
-├── eslint.config.js        # Flat ESLint configuration
+├── bun.lock                # Bun lockfile
+├── bunfig.toml             # Bun runtime and install configuration
+├── eslint.config.js        # Flat ESLint 9 configuration
 ├── package.json            # Project manifest, dependencies, and scripts
-├── tsconfig.json           # TypeScript configuration with path aliases
-├── vite.config.ts          # Vite configuration
+├── tsconfig.json           # Strict TypeScript configuration
+├── vite.config.ts          # Vite build configuration
 └── vitest.config.ts        # Vitest test runner configuration
 ```
 
 ---
 
-## Trace Schema Specification
-
-GraphTrace accepts `.json` trace files adhering to the following structure:
-
-```json
-{
-  "query": "why is checkout failing?",
-  "framework": "langgraph",
-  "latency_ms": 2140,
-  "answer": "Checkout fails because the Stripe webhook handler times out after the payment intent confirms...",
-  "spans": [
-    { "id": "s1", "name": "plan", "kind": "node", "start_ms": 0, "end_ms": 180, "status": "ok" },
-    {
-      "id": "s2",
-      "name": "search_prs",
-      "kind": "retriever",
-      "parent_id": "s1",
-      "start_ms": 180,
-      "end_ms": 720,
-      "status": "ok"
-    },
-    { "id": "s3", "name": "answer", "kind": "llm", "start_ms": 720, "end_ms": 2140, "status": "ok" }
-  ],
-  "retrievals": [
-    {
-      "span_id": "s2",
-      "query": "checkout failure",
-      "arm": "vector",
-      "items": [
-        {
-          "id": "pr_412",
-          "label": "PR #412 · Raise Stripe webhook timeout",
-          "kind": "pull_request",
-          "score": 0.88,
-          "content": "Stripe webhook handler times out on payment_intent.succeeded. Raise timeout and add retry queue."
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Overlap Algorithm
-
-Lexical overlap is defined as:
-
-$$\text{Overlap}(A, C) = \frac{|T(A) \cap T(C)|}{\min(|T(A)|, |T(C)|)}$$
-
-Where:
-
-- $T(A)$ is the set of normalized non-stopword tokens from the generated answer.
-- $T(C)$ is the set of normalized non-stopword tokens from the retrieved chunk content.
-- An item is marked **Used** if $\text{Overlap} \ge 0.20$.
-
----
-
-## Getting Started
+## 9. Installation Instructions
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (version `20.x` or higher recommended)
-- `npm` (version `10.x` or higher)
+- [Bun](https://bun.sh/) (`v1.4.0` or higher) — recommended
+- Alternatively: [Node.js](https://nodejs.org/) (`v20.x` or higher) + `npm`
 
-### Installation
+### Setup
 
-1. Clone the repository:
+1. **Clone the repository:**
 
    ```bash
    git clone https://github.com/vasantha-kumar-s/graphtrace.git
    cd graphtrace
    ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 
    ```bash
-   npm install
+   bun install
    ```
 
-3. Configure environment variables (optional):
+3. **Configure environment variables (optional):**
    ```bash
    cp .env.example .env
    ```
 
 ---
 
-## Development & Build Commands
+## 10. Development Commands
 
-| Command              | Description                                                |
-| -------------------- | ---------------------------------------------------------- |
-| `npm run dev`        | Starts the local Vite development server with HMR          |
-| `npm run build`      | Produces an optimized production client and SSR build      |
-| `npm run preview`    | Previews the production build locally                      |
-| `npm run test`       | Runs the test suite via Vitest                             |
-| `npm run test:watch` | Runs Vitest in interactive watch mode                      |
-| `npm run lint`       | Runs ESLint 9 checks across all TypeScript and React files |
-| `npm run format`     | Formats all code files with Prettier                       |
-
----
-
-## Usage Instructions
-
-1. **Launch the Application**: Run `npm run dev` and open `http://localhost:3000` (or the displayed port) in your browser.
-2. **Explore Demo Trace**: Click the **demo run** button in the top navigation bar to load an example trace featuring multi-arm retrieval (vector search and knowledge graph search).
-3. **Inspect Execution Timeline**: The timeline waterfall displays each span's execution order, duration in milliseconds, and type (`retriever`, `llm`, or `node`).
-4. **Evaluate Retrieved vs. Used Items**:
-   - Items with a **green badge** (`used 0.XX`) supplied lexical context that reached the final answer.
-   - Items with a **red strikeout** (`no trace 0.00`) were retrieved by the search system but never used in the response.
-5. **Inspect Chunk Contents**: Click any item card to expand and read its raw retrieved text.
-6. **Upload Custom Traces**: Click **open trace.json** to import traces from your own agent logging pipeline.
+| Command              | Description                                           |
+| :------------------- | :---------------------------------------------------- |
+| `bun run dev`        | Starts the Vite local development server with HMR     |
+| `bun run build`      | Compiles an optimized client and SSR production build |
+| `bun run preview`    | Previews the compiled production build locally        |
+| `bun run test`       | Executes unit and integration tests via Vitest        |
+| `bun run test:watch` | Runs Vitest in interactive watch mode                 |
+| `bun run lint`       | Runs ESLint 9 across all TypeScript and React files   |
+| `bun run format`     | Enforces Prettier formatting across the repository    |
 
 ---
 
-## License
+## 11. Build and Testing Instructions
 
-This project is licensed under the MIT License.
+To verify production readiness:
+
+```bash
+# Run type checking
+bun x tsc --noEmit
+
+# Run linting
+bun run lint
+
+# Run all test suites
+bun run test
+
+# Compile production build
+bun run build
+```
+
+---
+
+## 12. Environment Configuration
+
+GraphTrace is designed for client-side privacy. Trace ingestion, scoring, and graph traversal run entirely within your local browser runtime.
+
+An optional [.env.example](.env.example) is provided for local hosting:
+
+```bash
+# Server Configuration (Optional)
+PORT=3000
+NODE_ENV=development
+```
+
+No external API keys (OpenAI, Anthropic, cloud databases) are required for core trace evaluation.
+
+---
+
+## 13. Known Limitations
+
+- **Lexical Overlap vs. Semantic Paraphrase**: Overlap scoring relies on lexical token matching ($n$-grams and vocabulary sets). If an agent drastically paraphrases technical content without retaining key terms, overlap scores will be lower than actual semantic usage.
+- **Trace Size in Browser**: For extremely large graph files ($>10,000$ nodes), client-side SVG rendering may experience lower frame rates compared to WebGL/Canvas implementations.
+- **Graph Schema Consistency**: Custom traces must supply valid entity and edge structures (`source`, `target`, `id`, `label`) to render correctly in the Knowledge Graph explorer.
+
+---
+
+## 14. Future Roadmap
+
+- [ ] **WebGL-Accelerated Graph Canvas**: Add PixiJS or WebGL canvas mode for graphs exceeding 20,000 entities.
+- [ ] **Run Diffing**: Side-by-side comparison between two agent runs to analyze regressions in retrieval precision.
+- [ ] **Python SDK Exporter**: Lightweight `pip install graphtrace` callback for automatic zero-config logging in LangGraph and LlamaIndex.
+- [ ] **Interactive Cypher / Path Queries**: In-browser filtering of subgraphs using Cypher-like relationship patterns.
+
+---
+
+## 15. License
+
+This project is licensed under the [MIT License](LICENSE).
